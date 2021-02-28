@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -ex
+
+kubectl create cm test1 && kubectl label cm/test1 autodelete=3
+kubectl create cm test2 && kubectl label cm/test2 autodelete=2
+kubectl create cm test3 && kubectl label cm/test3 autodelete=1
+
+sleep 2
+
+kubectl label cm/test1 autodelete=true --overwrite
+sleep 2
+kubectl create cm test4 && kubectl label cm/test4 autodelete=0
+sleep 2
+kubectl label cm/test3 autodelete=true --overwrite
+sleep 2
+kubectl label cm/test2 autodelete=true --overwrite
