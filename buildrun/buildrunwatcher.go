@@ -8,6 +8,12 @@ import (
 	kube "github.com/duglin/k8sapi/lib"
 )
 
+// Labels we'll use.
+// PAUSE_CHECK is used as an indicator that we've already processed this
+// buildrun so we can skip it
+// PAUSE_BUILD is used as a pointer to a buildrun from all knServices that
+// are waiting for the buildrun to finish. It should contain the UID
+// of the buildrun of interest.
 var PAUSE_CHECK = "cloud.ibm.com/pause-check"
 var PAUSE_BUILD = "cloud.ibm.com/pause-build"
 
@@ -31,6 +37,10 @@ type BuildRunEvent struct {
 	Type string
 }
 
+// Process an event - which means a buildrun finished so we now need to
+// find all knServices that are watching it and remove their PAUSE label
+// so it can continue it's reconciliation processing (unless there are other
+// PAUSE labels for other reasons)
 func ProcessEvent(event *BuildRunEvent) {
 	ns := event.Object.Metadata.Namespace
 	name := event.Object.Metadata.Name
@@ -86,7 +96,9 @@ func ProcessEvent(event *BuildRunEvent) {
 		}
 	}
 
-	// Add label to Buildrun so we don't process it again
+	// Add label to Buildrun so we don't process it again.
+	// This needs to come last so that if we crash we'll process it again
+	// to make sure we didn't miss any KnService updates.
 	log.Printf("Patching buildrun: %s/%s", ns, name)
 	patch = `{"metadata":{"labels":{"` + PAUSE_CHECK + `":"true"}}}`
 	url = "/apis/shipwright.io/v1alpha1/namespaces/" + ns + "/buildruns/" + name
